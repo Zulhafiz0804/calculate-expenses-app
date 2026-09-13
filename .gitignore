@@ -36,8 +36,4 @@ dist/
 .vscode/
 .idea/
 .DS_Store
-Thumbs.db__pycache__/
-*.pyc
-.venv/
-.env
-expenses.db
+Thumbs.db
