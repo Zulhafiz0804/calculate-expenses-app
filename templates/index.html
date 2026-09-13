@@ -25,6 +25,18 @@
       }
     </script>
     <style>
+      button,
+      a {
+        touch-action: manipulation;
+      }
+      button {
+        -webkit-appearance: none;
+        appearance: none;
+        -webkit-tap-highlight-color: transparent;
+        outline: none;
+        -webkit-user-select: none;
+        user-select: none;
+      }
       body {
         background: #f6f2ec;
       }
@@ -215,8 +227,8 @@
       </div>
 
       <nav class="mt-3 flex items-center justify-between rounded-full bg-white/90 p-2 shadow-soft ring-1 ring-slate-200/80 backdrop-blur-sm">
-        <button type="button" data-view="add-expense-view" class="nav-btn flex-1 rounded-full bg-accent px-4 py-2.5 text-sm font-medium text-white shadow-md shadow-accent/20">Add</button>
-        <button type="button" data-view="dashboard-view" class="nav-btn flex-1 rounded-full px-4 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100">Dashboard</button>
+        <button type="button" data-view="add-expense-view" class="nav-btn flex-1 appearance-none select-none rounded-full bg-accent px-4 py-2.5 text-sm font-medium text-white shadow-md shadow-accent/20 outline-none">Add</button>
+        <button type="button" data-view="dashboard-view" class="nav-btn flex-1 appearance-none select-none rounded-full px-4 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100 outline-none">Dashboard</button>
       </nav>
     </div>
 
@@ -485,6 +497,12 @@
         document.getElementById('date').value = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
       }
 
+      function parseApiDate(dateString) {
+        const normalizedDate = String(dateString).trim().replace(' ', 'T');
+        const parsedDate = new Date(normalizedDate);
+        return Number.isNaN(parsedDate.getTime()) ? null : parsedDate;
+      }
+
       async function loadExpenses() {
         const res = await fetch('/api/expenses');
         const expenses = await res.json();
@@ -568,7 +586,10 @@
         chartInstance = new Chart(chartCanvas, {
           type: 'bar',
           data: {
-            labels: data.chart.labels,
+            labels: data.chart.labels.map((dateString) => {
+              const parsedDate = parseApiDate(dateString);
+              return parsedDate ? parsedDate.toLocaleDateString('en-US', { weekday: 'short' }) : dateString;
+            }),
             datasets: [{
               label: 'Spending',
               data: data.chart.values,

@@ -269,7 +269,7 @@ def dashboard_data():
     for i in range(7):
         date_in_range = current_day + timedelta(days=i)
         date_key = date_in_range.isoformat()
-        labels.append(date_in_range.strftime("%a"))
+        labels.append(date_key)
         values.append(totals_by_day.get(date_key, 0.0))
 
     return jsonify(
