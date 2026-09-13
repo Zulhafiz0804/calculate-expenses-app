@@ -210,15 +210,6 @@ def dashboard_data():
             WHERE strftime('%Y', date) = :year_key
             """
         )
-        weekly_sql = text(
-            """
-            SELECT strftime('%Y-%m-%d', date) AS day, COALESCE(SUM(amount), 0) AS total
-            FROM expense
-            WHERE date BETWEEN date(:today, '-6 days') AND date(:today)
-            GROUP BY strftime('%Y-%m-%d', date)
-            ORDER BY day
-            """
-        )
     else:
         daily_sql = text(
             """
@@ -241,36 +232,30 @@ def dashboard_data():
             WHERE EXTRACT(YEAR FROM date) = CAST(:year_key AS INT)
             """
         )
-        weekly_sql = text(
-            """
-            SELECT CAST(date AS DATE) AS day, COALESCE(SUM(amount), 0) AS total
-            FROM expense
-            WHERE date >= CURRENT_DATE - INTERVAL '6 days'
-            GROUP BY CAST(date AS DATE)
-            ORDER BY day
-            """
-        )
 
     daily_total = float(db.session.execute(daily_sql, {"today": today.isoformat()}).scalar() or 0)
     monthly_total = float(db.session.execute(monthly_sql, {"month_key": month_key}).scalar() or 0)
     yearly_total = float(db.session.execute(yearly_sql, {"year_key": year_key}).scalar() or 0)
-    weekly_rows = db.session.execute(weekly_sql, {"today": today.isoformat(), "month_key": month_key, "year_key": year_key}).fetchall()
 
     budget_settings = BudgetSettings.query.first()
     monthly_budget = float(budget_settings.monthly_budget if budget_settings else 0.0)
     budget_percent = 0.0 if monthly_budget == 0 else (monthly_total / monthly_budget) * 100
     budget_alert = monthly_budget > 0 and budget_percent >= 80.0
 
-    totals_by_day = {row[0]: float(row[1]) for row in weekly_rows}
+    start_day = today - timedelta(days=6)
+    recent_expenses = Expense.query.filter(Expense.date >= start_day, Expense.date <= today).all()
+    totals_by_day = {}
+    for expense in recent_expenses:
+        totals_by_day[expense.date] = totals_by_day.get(expense.date, 0.0) + float(expense.amount)
+
     labels = []
     values = []
-    current_day = today - timedelta(days=6)
+    current_day = start_day
 
-    for i in range(7):
-        date_in_range = current_day + timedelta(days=i)
-        date_key = date_in_range.isoformat()
-        labels.append(date_key)
-        values.append(totals_by_day.get(date_key, 0.0))
+    for day_offset in range(7):
+        date_in_range = current_day + timedelta(days=day_offset)
+        labels.append(date_in_range.strftime("%a"))
+        values.append(round(totals_by_day.get(date_in_range, 0.0), 2))
 
     return jsonify(
         {
@@ -280,7 +265,7 @@ def dashboard_data():
             "monthly_budget": round(monthly_budget, 2),
             "budget_percent": round(budget_percent, 2),
             "budget_alert": budget_alert,
-            "chart": {"labels": labels, "values": [round(value, 2) for value in values]},
+            "chart": {"labels": labels, "values": values},
         }
     )
 

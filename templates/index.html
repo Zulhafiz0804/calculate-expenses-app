@@ -497,12 +497,6 @@
         document.getElementById('date').value = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
       }
 
-      function parseApiDate(dateString) {
-        const normalizedDate = String(dateString).trim().replace(' ', 'T');
-        const parsedDate = new Date(normalizedDate);
-        return Number.isNaN(parsedDate.getTime()) ? null : parsedDate;
-      }
-
       async function loadExpenses() {
         const res = await fetch('/api/expenses');
         const expenses = await res.json();
@@ -586,10 +580,7 @@
         chartInstance = new Chart(chartCanvas, {
           type: 'bar',
           data: {
-            labels: data.chart.labels.map((dateString) => {
-              const parsedDate = parseApiDate(dateString);
-              return parsedDate ? parsedDate.toLocaleDateString('en-US', { weekday: 'short' }) : dateString;
-            }),
+            labels: data.chart.labels,
             datasets: [{
               label: 'Spending',
               data: data.chart.values,
