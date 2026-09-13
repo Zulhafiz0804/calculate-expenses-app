@@ -1,0 +1,753 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Expense Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            boxShadow: {
+              soft: '0 12px 30px rgba(15, 23, 42, 0.08)',
+              inset: 'inset 0 1px 0 rgba(255,255,255,0.9)'
+            },
+            colors: {
+              sand: '#f7f3ee',
+              accent: '#6d7cff',
+              accentDark: '#535fe9',
+              textSoft: '#6b7280'
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      body {
+        background: #f6f2ec;
+      }
+      .tab-hidden {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body class="min-h-screen flex items-center justify-center px-4 py-8 antialiased text-slate-800">
+    <div class="w-full max-w-sm rounded-[2rem] bg-[#f9f7f4] p-3 shadow-[0_25px_60px_rgba(15,23,42,0.12)] ring-1 ring-slate-200/80">
+      <div class="rounded-[1.6rem] bg-[#fffdfb] p-5 shadow-soft">
+        <section id="add-expense-view" class="view-panel">
+          <div class="mb-6 flex items-center justify-between">
+            <div>
+              <p class="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">Overview</p>
+              <h1 class="mt-2 text-2xl font-semibold tracking-tight">Expenses</h1>
+            </div>
+            <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-lg shadow-inner">💸</div>
+          </div>
+
+          <div class="mb-5 rounded-2xl bg-gradient-to-r from-[#eef1ff] to-[#f5f3ff] p-4 shadow-sm ring-1 ring-slate-200/70">
+            <p class="text-xs font-medium uppercase tracking-[0.2em] text-slate-500">Total</p>
+            <div id="summary" class="mt-2 text-3xl font-semibold tracking-tight text-slate-900">$0.00</div>
+          </div>
+
+          <form id="expense-form" class="space-y-4 rounded-3xl bg-white p-4 shadow-soft ring-1 ring-slate-200/80">
+            <div>
+              <label for="amount" class="mb-2 block text-xs font-medium uppercase tracking-[0.18em] text-slate-500">Amount</label>
+              <input id="amount" name="amount" type="number" step="0.01" min="0" placeholder="0.00" required class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-base text-slate-800 placeholder:text-slate-400 focus:border-accent focus:bg-white focus:outline-none focus:ring-3 focus:ring-accent/10" />
+            </div>
+
+            <div>
+              <div class="mb-2 flex items-center justify-between">
+                <label class="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">Tags</label>
+                <button id="add-tag-btn" type="button" class="rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-accent transition hover:border-accent">+ Add Tag</button>
+              </div>
+              <div id="tag-picker" class="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="group" aria-label="Expense tags"></div>
+              <p id="tag-selection-status" class="mt-2 text-xs text-slate-400">Select one or more tags</p>
+            </div>
+
+            <div>
+              <label for="description" class="mb-2 block text-xs font-medium uppercase tracking-[0.18em] text-slate-500">Description</label>
+              <input id="description" name="description" type="text" maxlength="255" placeholder="Groceries, coffee, train" required class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-base text-slate-800 placeholder:text-slate-400 focus:border-accent focus:bg-white focus:outline-none focus:ring-3 focus:ring-accent/10" />
+            </div>
+
+            <div>
+              <label for="date" class="mb-2 block text-xs font-medium uppercase tracking-[0.18em] text-slate-500">Date</label>
+              <input id="date" name="date" type="date" required class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-base text-slate-800 focus:border-accent focus:bg-white focus:outline-none focus:ring-3 focus:ring-accent/10" />
+            </div>
+
+            <button type="submit" class="w-full rounded-2xl bg-accent px-4 py-3.5 text-base font-semibold text-white shadow-lg shadow-accent/25 transition hover:bg-accentDark focus:outline-none focus:ring-4 focus:ring-accent/20">Add Expense</button>
+          </form>
+
+          <div class="mt-6">
+            <div class="mb-3 flex items-center justify-between">
+              <h2 class="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">Recent</h2>
+              <span class="text-xs text-slate-400">Today</span>
+            </div>
+
+            <label class="mb-4 flex cursor-pointer items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 shadow-sm">
+              <span class="text-sm font-medium text-slate-700">Enable Fixed Monthly Spend</span>
+              <span class="relative inline-flex items-center">
+                <input id="fixed-spend-toggle" type="checkbox" class="peer sr-only" />
+                <span class="h-6 w-11 rounded-full bg-slate-300 transition peer-checked:bg-accent peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-accent/20"></span>
+                <span class="absolute left-1 h-4 w-4 rounded-full bg-white shadow-sm transition peer-checked:translate-x-5"></span>
+              </span>
+            </label>
+
+            <div id="recurring-section" class="tab-hidden mb-4 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+              <div class="mb-3 flex items-center justify-between">
+                <h3 class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Fixed Bills</h3>
+                <button id="manage-bills-btn" type="button" class="text-xs font-medium text-accent transition hover:text-accentDark">⚙️ Manage Bills</button>
+              </div>
+              <div id="recurring-list" class="space-y-2"></div>
+              <div id="recurring-status" class="hidden mt-3 rounded-xl px-3 py-2 text-xs font-medium"></div>
+            </div>
+
+            <ul id="expense-list" class="space-y-3"></ul>
+          </div>
+        </section>
+
+        <div id="bills-modal" class="tab-hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/30 px-4 py-6" role="dialog" aria-modal="true" aria-labelledby="bills-modal-title">
+          <div class="w-full max-w-sm rounded-3xl bg-[#fffdfb] p-5 shadow-[0_25px_60px_rgba(15,23,42,0.2)] ring-1 ring-slate-200/80">
+            <div class="mb-5 flex items-center justify-between">
+              <div>
+                <p class="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">Settings</p>
+                <h2 id="bills-modal-title" class="mt-1 text-xl font-semibold tracking-tight text-slate-800">Manage Fixed Bills</h2>
+              </div>
+              <button id="close-bills-modal-btn" type="button" class="rounded-xl p-2 text-xl leading-none text-slate-400 transition hover:bg-slate-100 hover:text-slate-700" aria-label="Close">&times;</button>
+            </div>
+
+            <div id="manage-bills-list" class="max-h-64 space-y-3 overflow-y-auto"></div>
+            <div id="manage-bills-status" class="hidden mt-3 rounded-xl border px-3 py-2 text-xs font-medium"></div>
+
+            <form id="new-bill-form" class="mt-5 space-y-3 rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-200/70">
+              <h3 class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Add New Bill</h3>
+              <input id="new-bill-category" type="text" maxlength="100" placeholder="Category" required class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 focus:border-accent focus:outline-none focus:ring-3 focus:ring-accent/10" />
+              <input id="new-bill-description" type="text" maxlength="255" placeholder="Description" required class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 focus:border-accent focus:outline-none focus:ring-3 focus:ring-accent/10" />
+              <div class="flex gap-2">
+                <input id="new-bill-amount" type="number" min="0.01" step="0.01" placeholder="Amount" required class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 focus:border-accent focus:outline-none focus:ring-3 focus:ring-accent/10" />
+                <button type="submit" class="shrink-0 rounded-xl bg-accent px-3 py-2.5 text-sm font-semibold text-white shadow-md shadow-accent/20 transition hover:bg-accentDark">Add New Bill</button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <div id="tags-modal" class="tab-hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/30 px-4 py-6" role="dialog" aria-modal="true" aria-labelledby="tags-modal-title">
+          <div class="w-full max-w-sm rounded-3xl bg-[#fffdfb] p-5 shadow-[0_25px_60px_rgba(15,23,42,0.2)] ring-1 ring-slate-200/80">
+            <div class="mb-5 flex items-center justify-between">
+              <div>
+                <p class="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">Customize</p>
+                <h2 id="tags-modal-title" class="mt-1 text-xl font-semibold tracking-tight text-slate-800">Add a Tag</h2>
+              </div>
+              <button id="close-tags-modal-btn" type="button" class="rounded-xl p-2 text-xl leading-none text-slate-400 transition hover:bg-slate-100 hover:text-slate-700" aria-label="Close">&times;</button>
+            </div>
+            <form id="new-tag-form" class="space-y-4">
+              <input id="new-tag-name" type="text" maxlength="100" placeholder="#Tag name" required class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 focus:border-accent focus:bg-white focus:outline-none focus:ring-3 focus:ring-accent/10" />
+              <div>
+                <p class="mb-2 text-xs font-medium uppercase tracking-[0.16em] text-slate-500">Color</p>
+                <div id="color-palette" class="flex gap-3"></div>
+              </div>
+              <div id="tag-status" class="hidden rounded-xl border px-3 py-2 text-xs font-medium"></div>
+              <button type="submit" class="w-full rounded-xl bg-accent px-4 py-3 text-sm font-semibold text-white shadow-md shadow-accent/20 transition hover:bg-accentDark">Save Tag</button>
+            </form>
+          </div>
+        </div>
+
+        <section id="dashboard-view" class="view-panel tab-hidden">
+          <div class="mb-6 flex items-center justify-between">
+            <div>
+              <p class="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">Insights</p>
+              <h2 class="mt-2 text-2xl font-semibold tracking-tight">Dashboard</h2>
+            </div>
+            <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-lg shadow-inner">📊</div>
+          </div>
+
+          <div id="budget-alert" class="hidden mb-4 rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700 shadow-sm"></div>
+
+          <div class="mb-4 rounded-2xl bg-slate-50 p-3 shadow-sm ring-1 ring-slate-200/70">
+            <label for="monthly-budget" class="mb-2 block text-[10px] uppercase tracking-[0.18em] text-slate-500">Monthly Budget</label>
+            <div class="flex gap-2">
+              <input id="monthly-budget" type="number" min="0" step="0.01" placeholder="0.00" class="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 focus:border-accent focus:outline-none focus:ring-3 focus:ring-accent/10" />
+              <button id="save-budget-btn" type="button" class="rounded-2xl bg-accent px-3 py-2.5 text-sm font-medium text-white shadow-md shadow-accent/20">Save</button>
+            </div>
+          </div>
+
+          <div class="mb-5 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+            <div class="flex items-center justify-between gap-3">
+              <span class="text-sm font-semibold text-slate-700">Remaining Balance</span>
+              <span id="remaining-balance" class="text-sm font-semibold text-slate-800">$0.00</span>
+            </div>
+            <div class="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-slate-100" role="progressbar" aria-label="Monthly budget spent" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+              <div id="budget-progress-bar" class="h-full w-0 rounded-full bg-emerald-500 transition-all duration-500"></div>
+            </div>
+            <div class="mt-2 flex justify-between text-[10px] uppercase tracking-[0.14em] text-slate-400">
+              <span>Spent</span>
+              <span id="budget-progress-label">0% spent</span>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-3 gap-2 mb-5">
+            <div class="rounded-2xl bg-slate-50 p-3 shadow-sm ring-1 ring-slate-200/70">
+              <p class="text-[10px] uppercase tracking-[0.14em] text-slate-500">Day</p>
+              <div id="daily-total" class="mt-2 text-sm font-semibold text-slate-800">$0.00</div>
+            </div>
+            <div class="rounded-2xl bg-slate-50 p-3 shadow-sm ring-1 ring-slate-200/70">
+              <p class="text-[10px] uppercase tracking-[0.14em] text-slate-500">Month</p>
+              <div id="monthly-total" class="mt-2 text-sm font-semibold text-slate-800">$0.00</div>
+            </div>
+            <div class="rounded-2xl bg-slate-50 p-3 shadow-sm ring-1 ring-slate-200/70">
+              <p class="text-[10px] uppercase tracking-[0.14em] text-slate-500">Year</p>
+              <div id="yearly-total" class="mt-2 text-sm font-semibold text-slate-800">$0.00</div>
+            </div>
+          </div>
+
+          <div class="rounded-3xl bg-white p-3 shadow-soft ring-1 ring-slate-200/80">
+            <div class="mb-3 flex items-center justify-between">
+              <h3 class="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">Last 7 days</h3>
+            </div>
+            <div class="h-44">
+              <canvas id="spendingChart"></canvas>
+            </div>
+          </div>
+
+          <button id="export-csv-btn" type="button" class="mt-4 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700 shadow-sm transition hover:border-accent hover:text-accent">Export Data (CSV)</button>
+          <button id="reset-data-btn" type="button" class="mt-3 w-full rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 shadow-sm transition hover:bg-red-100">Reset All Data</button>
+        </section>
+      </div>
+
+      <nav class="mt-3 flex items-center justify-between rounded-full bg-white/90 p-2 shadow-soft ring-1 ring-slate-200/80 backdrop-blur-sm">
+        <button type="button" data-view="add-expense-view" class="nav-btn flex-1 rounded-full bg-accent px-4 py-2.5 text-sm font-medium text-white shadow-md shadow-accent/20">Add</button>
+        <button type="button" data-view="dashboard-view" class="nav-btn flex-1 rounded-full px-4 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100">Dashboard</button>
+      </nav>
+    </div>
+
+    <script>
+      const form = document.getElementById('expense-form');
+      const list = document.getElementById('expense-list');
+      const summary = document.getElementById('summary');
+      const tagPicker = document.getElementById('tag-picker');
+      const tagSelectionStatus = document.getElementById('tag-selection-status');
+      const addTagButton = document.getElementById('add-tag-btn');
+      const tagsModal = document.getElementById('tags-modal');
+      const closeTagsModalButton = document.getElementById('close-tags-modal-btn');
+      const newTagForm = document.getElementById('new-tag-form');
+      const newTagName = document.getElementById('new-tag-name');
+      const colorPalette = document.getElementById('color-palette');
+      const tagStatus = document.getElementById('tag-status');
+      const descriptionInput = document.getElementById('description');
+      const dailyTotalEl = document.getElementById('daily-total');
+      const monthlyTotalEl = document.getElementById('monthly-total');
+      const yearlyTotalEl = document.getElementById('yearly-total');
+      const monthlyBudgetInput = document.getElementById('monthly-budget');
+      const remainingBalanceEl = document.getElementById('remaining-balance');
+      const budgetProgressBar = document.getElementById('budget-progress-bar');
+      const budgetProgressLabel = document.getElementById('budget-progress-label');
+      const budgetProgressTrack = budgetProgressBar.parentElement;
+      const budgetAlert = document.getElementById('budget-alert');
+      const saveBudgetButton = document.getElementById('save-budget-btn');
+      const exportCsvButton = document.getElementById('export-csv-btn');
+      const resetDataButton = document.getElementById('reset-data-btn');
+      const fixedSpendToggle = document.getElementById('fixed-spend-toggle');
+      const recurringSection = document.getElementById('recurring-section');
+      const recurringList = document.getElementById('recurring-list');
+      const recurringStatus = document.getElementById('recurring-status');
+      const manageBillsButton = document.getElementById('manage-bills-btn');
+      const billsModal = document.getElementById('bills-modal');
+      const closeBillsModalButton = document.getElementById('close-bills-modal-btn');
+      const manageBillsList = document.getElementById('manage-bills-list');
+      const manageBillsStatus = document.getElementById('manage-bills-status');
+      const newBillForm = document.getElementById('new-bill-form');
+      const navButtons = document.querySelectorAll('.nav-btn');
+      const viewPanels = document.querySelectorAll('.view-panel');
+      let chartInstance = null;
+      let availableTags = [];
+      const selectedTagIds = new Set();
+      const tagColors = ['#d7ead9', '#cbdcf0', '#f3d4dc', '#f5e1bd', '#ddd5ed'];
+
+      function createTagChip(tag, isSelected = false) {
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.textContent = tag.name;
+        chip.dataset.tagId = tag.id;
+        chip.className = 'shrink-0 rounded-full border px-3 py-2 text-xs font-semibold transition';
+        chip.style.borderColor = tag.color_hex;
+        chip.style.backgroundColor = isSelected ? tag.color_hex : '#ffffff';
+        chip.style.color = '#334155';
+        chip.setAttribute('aria-pressed', String(isSelected));
+        chip.addEventListener('click', () => {
+          if (selectedTagIds.has(tag.id)) {
+            selectedTagIds.delete(tag.id);
+          } else {
+            selectedTagIds.add(tag.id);
+          }
+          renderTagPicker();
+        });
+        return chip;
+      }
+
+      function renderTagPicker() {
+        tagPicker.replaceChildren(...availableTags.map((tag) => createTagChip(tag, selectedTagIds.has(tag.id))));
+        tagSelectionStatus.textContent = selectedTagIds.size ? `${selectedTagIds.size} tag${selectedTagIds.size === 1 ? '' : 's'} selected` : 'Select one or more tags';
+      }
+
+      function renderExpenseTags(tags) {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'mt-2 flex flex-wrap gap-1.5';
+        tags.forEach((tag) => {
+          const chip = document.createElement('span');
+          chip.textContent = tag.name;
+          chip.className = 'rounded-full px-2 py-1 text-[11px] font-semibold text-slate-700';
+          chip.style.backgroundColor = tag.color_hex;
+          wrapper.appendChild(chip);
+        });
+        return wrapper;
+      }
+
+      async function loadTags() {
+        const response = await fetch('/api/tags');
+        availableTags = await response.json();
+        renderTagPicker();
+      }
+
+      function showTagStatus(message, isError = false) {
+        tagStatus.textContent = message;
+        tagStatus.className = `rounded-xl border px-3 py-2 text-xs font-medium ${isError ? 'border-red-200 bg-red-50 text-red-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`;
+      }
+
+      function openTagsModal() {
+        colorPalette.replaceChildren(...tagColors.map((color, index) => {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.dataset.color = color;
+          button.className = `h-9 w-9 rounded-full border-2 ${index === 0 ? 'ring-2 ring-accent ring-offset-2' : 'border-white'}`;
+          button.style.backgroundColor = color;
+          button.setAttribute('aria-label', `Choose ${color}`);
+          button.addEventListener('click', () => {
+            colorPalette.querySelectorAll('button').forEach((item) => item.classList.remove('ring-2', 'ring-accent', 'ring-offset-2'));
+            button.classList.add('ring-2', 'ring-accent', 'ring-offset-2');
+          });
+          return button;
+        }));
+        tagStatus.className = 'hidden';
+        newTagForm.reset();
+        tagsModal.classList.remove('tab-hidden');
+        newTagName.focus();
+      }
+
+      function showRecurringStatus(message, isError = false) {
+        recurringStatus.textContent = message;
+        recurringStatus.classList.remove('hidden', 'border', 'border-emerald-200', 'bg-emerald-50', 'text-emerald-700', 'border-red-200', 'bg-red-50', 'text-red-700');
+        recurringStatus.classList.add('border');
+        recurringStatus.classList.add(isError ? 'border-red-200' : 'border-emerald-200');
+        recurringStatus.classList.add(isError ? 'bg-red-50' : 'bg-emerald-50');
+        recurringStatus.classList.add(isError ? 'text-red-700' : 'text-emerald-700');
+        recurringStatus.classList.remove('hidden');
+      }
+
+      function renderRecurringBills(bills) {
+        recurringList.innerHTML = bills.map((bill) => `
+          <div class="flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2.5">
+            <div class="min-w-0">
+              <div class="truncate text-sm font-medium text-slate-700">${bill.description}</div>
+              <div class="text-xs text-slate-500">${bill.category} · ${formatCurrency(bill.amount)}</div>
+            </div>
+            <button type="button" data-bill-id="${bill.id}" class="log-bill-btn shrink-0 rounded-xl bg-accent px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-accentDark">Log this bill</button>
+          </div>
+        `).join('');
+
+        document.querySelectorAll('.log-bill-btn').forEach((button) => {
+          button.addEventListener('click', () => logRecurringBill(button));
+        });
+      }
+
+      async function loadRecurringBills() {
+        const res = await fetch('/api/recurring-bills');
+        const bills = await res.json();
+        renderRecurringBills(bills);
+        renderManageBills(bills);
+      }
+
+      function showManageBillsStatus(message, isError = false) {
+        manageBillsStatus.textContent = message;
+        manageBillsStatus.className = `mt-3 rounded-xl border px-3 py-2 text-xs font-medium ${isError ? 'border-red-200 bg-red-50 text-red-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`;
+      }
+
+      function renderManageBills(bills) {
+        manageBillsList.innerHTML = '';
+        bills.forEach((bill) => {
+          const row = document.createElement('div');
+          row.className = 'flex items-center gap-2 rounded-2xl bg-slate-50 p-2.5';
+
+          const descriptionInput = document.createElement('input');
+          descriptionInput.value = bill.description;
+          descriptionInput.maxLength = 255;
+          descriptionInput.className = 'min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-sm text-slate-800 focus:border-accent focus:outline-none focus:ring-3 focus:ring-accent/10';
+          descriptionInput.setAttribute('aria-label', `Description for ${bill.description}`);
+
+          const amountInput = document.createElement('input');
+          amountInput.type = 'number';
+          amountInput.min = '0.01';
+          amountInput.step = '0.01';
+          amountInput.value = Number(bill.amount).toFixed(2);
+          amountInput.className = 'w-24 rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-sm text-slate-800 focus:border-accent focus:outline-none focus:ring-3 focus:ring-accent/10';
+          amountInput.setAttribute('aria-label', `Amount for ${bill.description}`);
+
+          const updateButton = document.createElement('button');
+          updateButton.type = 'button';
+          updateButton.textContent = 'Update';
+          updateButton.className = 'rounded-xl bg-accent px-2.5 py-2 text-xs font-semibold text-white transition hover:bg-accentDark';
+          updateButton.addEventListener('click', () => updateFixedBill(bill.id, descriptionInput, amountInput));
+
+          const deleteButton = document.createElement('button');
+          deleteButton.type = 'button';
+          deleteButton.textContent = '🗑';
+          deleteButton.className = 'rounded-lg p-1.5 text-slate-400 transition hover:bg-red-100 hover:text-red-600';
+          deleteButton.title = 'Delete fixed bill';
+          deleteButton.setAttribute('aria-label', `Delete ${bill.description}`);
+          deleteButton.addEventListener('click', () => deleteFixedBill(bill.id));
+
+          row.append(descriptionInput, amountInput, updateButton, deleteButton);
+          manageBillsList.appendChild(row);
+        });
+      }
+
+      async function updateFixedBill(billId, descriptionInput, amountInput) {
+        const res = await fetch(`/api/fixed-bills/${billId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ description: descriptionInput.value, amount: amountInput.value })
+        });
+        const data = await res.json();
+        showManageBillsStatus(res.ok ? 'Bill updated.' : data.error, !res.ok);
+        if (res.ok) {
+          await loadRecurringBills();
+        }
+      }
+
+      async function deleteFixedBill(billId) {
+        const res = await fetch(`/api/fixed-bills/${billId}`, { method: 'DELETE' });
+        const data = await res.json();
+        showManageBillsStatus(res.ok ? 'Bill deleted.' : data.error, !res.ok);
+        if (res.ok) {
+          await loadRecurringBills();
+        }
+      }
+
+      async function logRecurringBill(button) {
+        button.disabled = true;
+        try {
+          const res = await fetch('/api/log-recurring', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ bill_id: button.dataset.billId })
+          });
+          const data = await res.json();
+          showRecurringStatus(data.message || data.error, !res.ok);
+          if (res.ok) {
+            await loadExpenses();
+            await loadDashboardData();
+          }
+        } catch (error) {
+          showRecurringStatus('Could not log fixed bill.', true);
+        } finally {
+          button.disabled = false;
+        }
+      }
+
+      function setActiveView(viewId) {
+        viewPanels.forEach((panel) => {
+          panel.classList.toggle('tab-hidden', panel.id !== viewId);
+        });
+        navButtons.forEach((button) => {
+          const isActive = button.dataset.view === viewId;
+          button.classList.toggle('bg-accent', isActive);
+          button.classList.toggle('text-white', isActive);
+          button.classList.toggle('shadow-md', isActive);
+          button.classList.toggle('shadow-accent/20', isActive);
+          button.classList.toggle('text-slate-600', !isActive);
+          button.classList.toggle('bg-slate-100', !isActive);
+        });
+      }
+
+      navButtons.forEach((button) => {
+        button.addEventListener('click', () => {
+          setActiveView(button.dataset.view);
+        });
+      });
+
+      const formatCurrency = (value) => new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD'
+      }).format(value);
+
+      function setDefaultDate() {
+        const today = new Date();
+        const pad = (n) => String(n).padStart(2, '0');
+        document.getElementById('date').value = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+      }
+
+      async function loadExpenses() {
+        const res = await fetch('/api/expenses');
+        const expenses = await res.json();
+        list.innerHTML = '';
+
+        let total = 0;
+        expenses.forEach((expense) => {
+          total += Number(expense.amount);
+          const item = document.createElement('li');
+          item.className = 'flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 shadow-sm';
+          item.innerHTML = `
+            <div class="min-w-0 pr-3">
+              <div class="truncate text-sm font-semibold text-slate-800">${expense.description}</div>
+              <div class="mt-1 text-[11px] uppercase tracking-[0.12em] text-slate-400">${expense.date}</div>
+            </div>
+            <div class="flex shrink-0 items-center gap-2">
+              <div class="text-sm font-semibold text-slate-800">${formatCurrency(expense.amount)}</div>
+              <button type="button" class="delete-expense-btn rounded-lg p-1.5 text-slate-400 transition hover:bg-red-100 hover:text-red-600" data-expense-id="${expense.id}" aria-label="Delete ${expense.description}" title="Delete expense">&#128465;</button>
+            </div>
+          `;
+          item.querySelector('.min-w-0').insertBefore(renderExpenseTags(expense.tags || []), item.querySelector('.mt-1'));
+          item.querySelector('.delete-expense-btn').addEventListener('click', () => deleteExpense(expense.id, item));
+          list.appendChild(item);
+        });
+
+        summary.textContent = formatCurrency(total);
+      }
+
+      async function deleteExpense(expenseId, item) {
+        const res = await fetch(`/api/expense/${expenseId}`, { method: 'DELETE' });
+        if (!res.ok) {
+          alert('Could not delete expense.');
+          return;
+        }
+
+        item.remove();
+        await loadExpenses();
+        await loadDashboardData();
+      }
+
+      async function loadDashboardData() {
+        const res = await fetch('/api/dashboard-data');
+        const data = await res.json();
+
+        dailyTotalEl.textContent = formatCurrency(data.daily_total || 0);
+        const monthlyTotal = Number(data.monthly_total) || 0;
+        const monthlyBudget = Number(data.monthly_budget) || 0;
+        const remainingBalance = monthlyBudget - monthlyTotal;
+        const spentPercentage = monthlyBudget > 0 ? (monthlyTotal / monthlyBudget) * 100 : 0;
+        const progressPercentage = Math.min(Math.max(spentPercentage, 0), 100);
+
+        monthlyTotalEl.textContent = formatCurrency(monthlyTotal);
+        yearlyTotalEl.textContent = formatCurrency(data.yearly_total || 0);
+        monthlyBudgetInput.value = monthlyBudget ? monthlyBudget.toFixed(2) : '';
+        remainingBalanceEl.textContent = `Remaining Balance: ${formatCurrency(remainingBalance)}`;
+        budgetProgressBar.style.width = `${progressPercentage}%`;
+        budgetProgressLabel.textContent = `${Math.round(spentPercentage)}% spent`;
+        budgetProgressTrack.setAttribute('aria-valuenow', String(Math.round(progressPercentage)));
+        budgetProgressBar.classList.remove('bg-emerald-500', 'bg-amber-500', 'bg-red-500');
+        if (monthlyBudget === 0 || spentPercentage < 75) {
+          budgetProgressBar.classList.add('bg-emerald-500');
+        } else if (spentPercentage <= 90) {
+          budgetProgressBar.classList.add('bg-amber-500');
+        } else {
+          budgetProgressBar.classList.add('bg-red-500');
+        }
+
+        if (data.budget_alert) {
+          budgetAlert.classList.remove('hidden');
+          budgetAlert.textContent = `Smart Spending Alert: You have used ${data.budget_percent}% of your monthly budget.`;
+        } else {
+          budgetAlert.classList.add('hidden');
+          budgetAlert.textContent = '';
+        }
+
+        const chartCanvas = document.getElementById('spendingChart');
+        if (chartInstance) {
+          chartInstance.destroy();
+        }
+
+        chartInstance = new Chart(chartCanvas, {
+          type: 'bar',
+          data: {
+            labels: data.chart.labels,
+            datasets: [{
+              label: 'Spending',
+              data: data.chart.values,
+              borderRadius: 8,
+              backgroundColor: '#6d7cff',
+              borderSkipped: false,
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false }
+            },
+            scales: {
+              x: {
+                grid: { display: false },
+                ticks: { color: '#64748b', font: { size: 10 } }
+              },
+              y: {
+                beginAtZero: true,
+                ticks: {
+                  color: '#64748b',
+                  callback: (value) => '$' + value
+                },
+                grid: { color: 'rgba(148, 163, 184, 0.15)' }
+              }
+            }
+          }
+        });
+      }
+
+      saveBudgetButton.addEventListener('click', async () => {
+        const budgetValue = Number(monthlyBudgetInput.value);
+        if (budgetValue < 0 || Number.isNaN(budgetValue)) {
+          alert('Please enter a valid monthly budget greater than or equal to zero.');
+          return;
+        }
+
+        const res = await fetch('/api/monthly-budget', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ monthly_budget: budgetValue })
+        });
+
+        if (res.ok) {
+          await loadDashboardData();
+        } else {
+          alert('Could not save budget.');
+        }
+      });
+
+      exportCsvButton.addEventListener('click', async () => {
+        window.location.href = '/api/export-csv';
+      });
+
+      resetDataButton.addEventListener('click', async () => {
+        const confirmed = confirm('Are you absolutely sure you want to delete all expenses? This cannot be undone.');
+        if (!confirmed) {
+          return;
+        }
+
+        const res = await fetch('/api/expenses/reset', { method: 'DELETE' });
+        if (!res.ok) {
+          alert('Could not reset expenses.');
+          return;
+        }
+
+        list.innerHTML = '';
+        summary.textContent = formatCurrency(0);
+        await loadDashboardData();
+      });
+
+      fixedSpendToggle.addEventListener('change', async () => {
+        recurringSection.classList.toggle('tab-hidden', !fixedSpendToggle.checked);
+        if (fixedSpendToggle.checked) {
+          await loadRecurringBills();
+        } else {
+          recurringStatus.classList.add('hidden');
+        }
+      });
+
+      manageBillsButton.addEventListener('click', async () => {
+        billsModal.classList.remove('tab-hidden');
+        manageBillsStatus.classList.add('hidden');
+        await loadRecurringBills();
+      });
+
+      closeBillsModalButton.addEventListener('click', () => {
+        billsModal.classList.add('tab-hidden');
+      });
+
+      billsModal.addEventListener('click', (event) => {
+        if (event.target === billsModal) {
+          billsModal.classList.add('tab-hidden');
+        }
+      });
+
+      newBillForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const payload = {
+          category: document.getElementById('new-bill-category').value,
+          description: document.getElementById('new-bill-description').value,
+          amount: document.getElementById('new-bill-amount').value
+        };
+        const res = await fetch('/api/fixed-bills', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        showManageBillsStatus(res.ok ? 'New bill added.' : data.error, !res.ok);
+        if (res.ok) {
+          newBillForm.reset();
+          await loadRecurringBills();
+        }
+      });
+
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        if (!selectedTagIds.size) {
+          alert('Please select at least one tag.');
+          return;
+        }
+        const payload = {
+          amount: document.getElementById('amount').value,
+          description: descriptionInput.value,
+          date: document.getElementById('date').value,
+          tag_ids: [...selectedTagIds]
+        };
+
+        const res = await fetch('/api/expenses', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (res.ok) {
+          form.reset();
+          selectedTagIds.clear();
+          renderTagPicker();
+          setDefaultDate();
+          await loadExpenses();
+          await loadDashboardData();
+        } else {
+          alert('Could not save expense.');
+        }
+      });
+
+      addTagButton.addEventListener('click', openTagsModal);
+      closeTagsModalButton.addEventListener('click', () => tagsModal.classList.add('tab-hidden'));
+      tagsModal.addEventListener('click', (event) => {
+        if (event.target === tagsModal) tagsModal.classList.add('tab-hidden');
+      });
+
+      newTagForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const selectedColor = colorPalette.querySelector('button.ring-2')?.dataset.color || tagColors[0];
+        const response = await fetch('/api/tags', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: newTagName.value, color_hex: selectedColor })
+        });
+        const data = await response.json();
+        if (!response.ok) {
+          showTagStatus(data.error || 'Could not create tag.', true);
+          return;
+        }
+        availableTags.push(data);
+        selectedTagIds.add(data.id);
+        renderTagPicker();
+        tagsModal.classList.add('tab-hidden');
+      });
+
+      setDefaultDate();
+      setActiveView('add-expense-view');
+      loadTags();
+      loadExpenses();
+      loadDashboardData();
+    </script>
+  </body>
+</html>

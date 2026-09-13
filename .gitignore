@@ -1,0 +1,43 @@
+# Byte-compiled / optimized Python files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Environment variables and local configuration
+.env
+.env.*
+!.env.example
+
+# Flask and local application data
+instance/
+*.db
+*.sqlite
+*.sqlite3
+
+# Test, coverage, and tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Distribution and build artifacts
+build/
+dist/
+*.egg-info/
+
+# Editor and OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db__pycache__/
+*.pyc
+.venv/
+.env
+expenses.db
