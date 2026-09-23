@@ -47,7 +47,7 @@
   </head>
   <body class="min-h-screen flex items-center justify-center px-4 py-8 antialiased text-slate-800">
     <div class="w-full max-w-sm rounded-[2rem] bg-[#f9f7f4] p-3 shadow-[0_25px_60px_rgba(15,23,42,0.12)] ring-1 ring-slate-200/80">
-      <div class="rounded-[1.6rem] bg-[#fffdfb] p-5 shadow-soft">
+      <div class="rounded-[1.6rem] bg-[#fffdfb] p-5 pb-24 shadow-soft">
         <section id="add-expense-view" class="view-panel">
           <div class="mb-6 flex items-center justify-between">
             <div>
@@ -213,11 +213,19 @@
           </div>
 
           <div class="rounded-3xl bg-white p-3 shadow-soft ring-1 ring-slate-200/80">
-            <div class="mb-3 flex items-center justify-between">
-              <h3 class="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">Last 7 days</h3>
+            <div class="mb-3 flex items-center justify-between gap-3">
+              <h3 id="chart-title" class="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">Last 7 days</h3>
+              <label class="sr-only" for="chart-range">Chart timeframe</label>
+              <select id="chart-range" class="rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-2 text-xs font-medium text-slate-600 focus:border-accent focus:outline-none focus:ring-3 focus:ring-accent/10">
+                <option value="7d">Last 7 Days</option>
+                <option value="30d">Last 30 Days</option>
+                <option value="year">This Year</option>
+              </select>
             </div>
-            <div class="h-44">
-              <canvas id="spendingChart"></canvas>
+            <div class="overflow-x-auto overflow-y-hidden">
+              <div id="chart-scroll-content" class="h-44">
+                <canvas id="spendingChart"></canvas>
+              </div>
             </div>
           </div>
 
@@ -226,9 +234,9 @@
         </section>
       </div>
 
-      <nav class="mt-3 flex items-center justify-between rounded-full bg-white/90 p-2 shadow-soft ring-1 ring-slate-200/80 backdrop-blur-sm">
+      <nav class="fixed bottom-0 left-0 z-50 flex w-full items-center justify-between bg-white p-2 shadow-soft ring-1 ring-slate-200/80">
         <button type="button" data-view="add-expense-view" class="nav-btn flex-1 appearance-none select-none rounded-full bg-accent px-4 py-2.5 text-sm font-medium text-white shadow-md shadow-accent/20 outline-none">Add</button>
-        <button type="button" data-view="dashboard-view" class="nav-btn flex-1 appearance-none select-none rounded-full px-4 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100 outline-none">Dashboard</button>
+        <button type="button" data-view="dashboard-view" class="nav-btn flex-1 appearance-none select-none rounded-full bg-slate-100 px-4 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-200 outline-none">Dashboard</button>
       </nav>
     </div>
 
@@ -258,6 +266,9 @@
       const saveBudgetButton = document.getElementById('save-budget-btn');
       const exportCsvButton = document.getElementById('export-csv-btn');
       const resetDataButton = document.getElementById('reset-data-btn');
+      const chartRangeSelect = document.getElementById('chart-range');
+      const chartTitle = document.getElementById('chart-title');
+      const chartScrollContent = document.getElementById('chart-scroll-content');
       const fixedSpendToggle = document.getElementById('fixed-spend-toggle');
       const recurringSection = document.getElementById('recurring-section');
       const recurringList = document.getElementById('recurring-list');
@@ -471,12 +482,23 @@
         });
         navButtons.forEach((button) => {
           const isActive = button.dataset.view === viewId;
-          button.classList.toggle('bg-accent', isActive);
-          button.classList.toggle('text-white', isActive);
-          button.classList.toggle('shadow-md', isActive);
-          button.classList.toggle('shadow-accent/20', isActive);
-          button.classList.toggle('text-slate-600', !isActive);
-          button.classList.toggle('bg-slate-100', !isActive);
+          button.classList.remove(
+            'bg-accent',
+            'bg-indigo-500',
+            'bg-slate-100',
+            'text-white',
+            'text-slate-600',
+            'font-medium',
+            'font-semibold',
+            'hover:bg-gray-100',
+            'hover:bg-slate-100',
+            'hover:bg-slate-200',
+            'shadow-md',
+            'shadow-accent/20'
+          );
+          button.classList.add(...(isActive
+            ? ['bg-indigo-500', 'text-white', 'font-semibold']
+            : ['bg-slate-100', 'text-slate-600', 'font-medium', 'hover:bg-slate-200']));
         });
       }
 
@@ -538,8 +560,10 @@
       }
 
       async function loadDashboardData() {
-        const res = await fetch('/api/dashboard-data');
+        const res = await fetch(`/api/dashboard-data?range=${encodeURIComponent(chartRangeSelect.value)}`);
         const data = await res.json();
+
+        chartTitle.textContent = chartRangeSelect.options[chartRangeSelect.selectedIndex].text;
 
         dailyTotalEl.textContent = formatCurrency(data.daily_total || 0);
         const monthlyTotal = Number(data.monthly_total) || 0;
@@ -573,20 +597,28 @@
         }
 
         const chartCanvas = document.getElementById('spendingChart');
+        chartScrollContent.style.minWidth = chartRangeSelect.value === '7d'
+          ? '100%'
+          : chartRangeSelect.value === '30d'
+            ? '800px'
+            : '1000px';
         if (chartInstance) {
           chartInstance.destroy();
         }
 
         chartInstance = new Chart(chartCanvas, {
-          type: 'bar',
+          type: 'line',
           data: {
             labels: data.chart.labels,
             datasets: [{
               label: 'Spending',
               data: data.chart.values,
-              borderRadius: 8,
-              backgroundColor: '#6d7cff',
-              borderSkipped: false,
+              borderColor: '#6d7cff',
+              backgroundColor: 'rgba(109, 124, 255, 0.12)',
+              fill: true,
+              tension: 0.4,
+              pointRadius: 2,
+              pointHoverRadius: 4,
             }]
           },
           options: {
@@ -653,6 +685,8 @@
         summary.textContent = formatCurrency(0);
         await loadDashboardData();
       });
+
+      chartRangeSelect.addEventListener('change', loadDashboardData);
 
       fixedSpendToggle.addEventListener('change', async () => {
         recurringSection.classList.toggle('tab-hidden', !fixedSpendToggle.checked);

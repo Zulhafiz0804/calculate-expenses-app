@@ -184,6 +184,10 @@ def reset_expenses():
 @app.route("/api/dashboard-data")
 def dashboard_data():
     today = datetime.utcnow().date()
+    chart_range = request.args.get("range", "7d")
+    if chart_range not in {"7d", "30d", "year"}:
+        chart_range = "7d"
+
     month_key = today.strftime("%Y-%m")
     year_key = today.strftime("%Y")
     dialect = db.engine.dialect.name
@@ -242,20 +246,35 @@ def dashboard_data():
     budget_percent = 0.0 if monthly_budget == 0 else (monthly_total / monthly_budget) * 100
     budget_alert = monthly_budget > 0 and budget_percent >= 80.0
 
-    start_day = today - timedelta(days=6)
-    recent_expenses = Expense.query.filter(Expense.date >= start_day, Expense.date <= today).all()
-    totals_by_day = {}
-    for expense in recent_expenses:
-        totals_by_day[expense.date] = totals_by_day.get(expense.date, 0.0) + float(expense.amount)
+    if chart_range == "year":
+        start_date = today.replace(month=1, day=1)
+        recent_expenses = Expense.query.filter(Expense.date >= start_date, Expense.date <= today).all()
+        totals_by_month = {}
+        for expense in recent_expenses:
+            month_start = expense.date.replace(day=1)
+            totals_by_month[month_start] = totals_by_month.get(month_start, 0.0) + float(expense.amount)
 
-    labels = []
-    values = []
-    current_day = start_day
+        labels = []
+        values = []
+        current_month = start_date
+        while current_month <= today:
+            labels.append(current_month.strftime("%b"))
+            values.append(round(totals_by_month.get(current_month, 0.0), 2))
+            current_month = (current_month.replace(day=28) + timedelta(days=4)).replace(day=1)
+    else:
+        day_count = 7 if chart_range == "7d" else 30
+        start_day = today - timedelta(days=day_count - 1)
+        recent_expenses = Expense.query.filter(Expense.date >= start_day, Expense.date <= today).all()
+        totals_by_day = {}
+        for expense in recent_expenses:
+            totals_by_day[expense.date] = totals_by_day.get(expense.date, 0.0) + float(expense.amount)
 
-    for day_offset in range(7):
-        date_in_range = current_day + timedelta(days=day_offset)
-        labels.append(date_in_range.strftime("%a"))
-        values.append(round(totals_by_day.get(date_in_range, 0.0), 2))
+        labels = []
+        values = []
+        for day_offset in range(day_count):
+            date_in_range = start_day + timedelta(days=day_offset)
+            labels.append(date_in_range.strftime("%b %-d") if os.name != "nt" else date_in_range.strftime("%b %#d"))
+            values.append(round(totals_by_day.get(date_in_range, 0.0), 2))
 
     return jsonify(
         {
@@ -265,7 +284,7 @@ def dashboard_data():
             "monthly_budget": round(monthly_budget, 2),
             "budget_percent": round(budget_percent, 2),
             "budget_alert": budget_alert,
-            "chart": {"labels": labels, "values": values},
+            "chart": {"range": chart_range, "labels": labels, "values": values},
         }
     )
 
