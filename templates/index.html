@@ -212,6 +212,19 @@
             </div>
           </div>
 
+          <div class="mb-5 grid grid-cols-2 gap-3">
+            <div class="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+              <p class="text-[10px] uppercase tracking-[0.14em] text-slate-500">MoM Trend</p>
+              <div id="mom-trend" class="mt-2 text-lg font-semibold text-slate-700">0.00%</div>
+              <p class="mt-1 text-[10px] text-slate-400">Compared with last month</p>
+            </div>
+            <div class="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+              <p class="text-[10px] uppercase tracking-[0.14em] text-slate-500">Projected Spend</p>
+              <div id="projected-monthly-spend" class="mt-2 text-lg font-semibold text-slate-800">$0.00</div>
+              <p class="mt-1 text-[10px] text-slate-400">Estimated month-end total</p>
+            </div>
+          </div>
+
           <div class="rounded-3xl bg-white p-3 shadow-soft ring-1 ring-slate-200/80">
             <div class="mb-3 flex items-center justify-between gap-3">
               <h3 id="chart-title" class="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">Last 7 days</h3>
@@ -225,6 +238,12 @@
             <div class="overflow-x-auto overflow-y-hidden">
               <div id="chart-scroll-content" class="h-44">
                 <canvas id="spendingChart"></canvas>
+              </div>
+            </div>
+            <div class="mt-5 border-t border-slate-100 pt-5">
+              <h3 class="mb-3 text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">Category Breakdown</h3>
+              <div class="mx-auto h-56 max-w-xs">
+                <canvas id="categoryChart"></canvas>
               </div>
             </div>
           </div>
@@ -257,6 +276,8 @@
       const dailyTotalEl = document.getElementById('daily-total');
       const monthlyTotalEl = document.getElementById('monthly-total');
       const yearlyTotalEl = document.getElementById('yearly-total');
+      const momTrendEl = document.getElementById('mom-trend');
+      const projectedMonthlySpendEl = document.getElementById('projected-monthly-spend');
       const monthlyBudgetInput = document.getElementById('monthly-budget');
       const remainingBalanceEl = document.getElementById('remaining-balance');
       const budgetProgressBar = document.getElementById('budget-progress-bar');
@@ -282,6 +303,7 @@
       const navButtons = document.querySelectorAll('.nav-btn');
       const viewPanels = document.querySelectorAll('.view-panel');
       let chartInstance = null;
+      let categoryChartInstance = null;
       let availableTags = [];
       const selectedTagIds = new Set();
       const tagColors = ['#d7ead9', '#cbdcf0', '#f3d4dc', '#f5e1bd', '#ddd5ed'];
@@ -574,6 +596,11 @@
 
         monthlyTotalEl.textContent = formatCurrency(monthlyTotal);
         yearlyTotalEl.textContent = formatCurrency(data.yearly_total || 0);
+        const momTrend = Number(data.mom_trend) || 0;
+        momTrendEl.textContent = `${momTrend >= 0 ? '+' : ''}${momTrend.toFixed(2)}%`;
+        momTrendEl.classList.remove('text-emerald-600', 'text-red-600', 'text-slate-700');
+        momTrendEl.classList.add(momTrend < 0 ? 'text-emerald-600' : momTrend > 0 ? 'text-red-600' : 'text-slate-700');
+        projectedMonthlySpendEl.textContent = formatCurrency(data.projected_monthly_spend || 0);
         monthlyBudgetInput.value = monthlyBudget ? monthlyBudget.toFixed(2) : '';
         remainingBalanceEl.textContent = `Remaining Balance: ${formatCurrency(remainingBalance)}`;
         budgetProgressBar.style.width = `${progressPercentage}%`;
@@ -639,6 +666,35 @@
                   callback: (value) => '$' + value
                 },
                 grid: { color: 'rgba(148, 163, 184, 0.15)' }
+              }
+            }
+          }
+        });
+
+        const categoryCanvas = document.getElementById('categoryChart');
+        if (categoryChartInstance) {
+          categoryChartInstance.destroy();
+        }
+
+        categoryChartInstance = new Chart(categoryCanvas, {
+          type: 'doughnut',
+          data: {
+            labels: data.category_labels,
+            datasets: [{
+              data: data.category_totals,
+              backgroundColor: ['#6d7cff', '#8b5cf6', '#14b8a6', '#f59e0b', '#f472b6', '#64748b'],
+              borderColor: '#fffdfb',
+              borderWidth: 3,
+              hoverOffset: 6,
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                position: 'bottom',
+                labels: { color: '#475569', usePointStyle: true, padding: 16 }
               }
             }
           }

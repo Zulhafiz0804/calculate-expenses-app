@@ -1,6 +1,7 @@
 import csv
 import io
 import os
+import calendar
 from datetime import datetime, timedelta
 
 from flask import Flask, jsonify, request, render_template, send_file
@@ -241,6 +242,20 @@ def dashboard_data():
     monthly_total = float(db.session.execute(monthly_sql, {"month_key": month_key}).scalar() or 0)
     yearly_total = float(db.session.execute(yearly_sql, {"year_key": year_key}).scalar() or 0)
 
+    current_month_start = today.replace(day=1)
+    previous_month_end = current_month_start - timedelta(days=1)
+    previous_month_start = previous_month_end.replace(day=1)
+    previous_month_total = float(
+        db.session.query(db.func.coalesce(db.func.sum(Expense.amount), 0))
+        .filter(Expense.date >= previous_month_start, Expense.date <= previous_month_end)
+        .scalar()
+        or 0
+    )
+    mom_trend = 0.0 if previous_month_total == 0 else ((monthly_total - previous_month_total) / previous_month_total) * 100
+    elapsed_days = (today - current_month_start).days + 1
+    days_in_current_month = calendar.monthrange(today.year, today.month)[1]
+    projected_monthly_spend = (monthly_total / elapsed_days) * days_in_current_month
+
     budget_settings = BudgetSettings.query.first()
     monthly_budget = float(budget_settings.monthly_budget if budget_settings else 0.0)
     budget_percent = 0.0 if monthly_budget == 0 else (monthly_total / monthly_budget) * 100
@@ -276,15 +291,30 @@ def dashboard_data():
             labels.append(date_in_range.strftime("%b %-d") if os.name != "nt" else date_in_range.strftime("%b %#d"))
             values.append(round(totals_by_day.get(date_in_range, 0.0), 2))
 
+    category_totals_by_name = {}
+    for expense in recent_expenses:
+        expense_tags = expense.tags or []
+        if not expense_tags:
+            category_totals_by_name["Untagged"] = category_totals_by_name.get("Untagged", 0.0) + float(expense.amount)
+        for tag in expense_tags:
+            category_totals_by_name[tag.name] = category_totals_by_name.get(tag.name, 0.0) + float(expense.amount)
+
+    category_labels = list(category_totals_by_name)
+    category_totals = [round(category_totals_by_name[label], 2) for label in category_labels]
+
     return jsonify(
         {
             "daily_total": round(daily_total, 2),
             "monthly_total": round(monthly_total, 2),
             "yearly_total": round(yearly_total, 2),
+            "mom_trend": round(mom_trend, 2),
+            "projected_monthly_spend": round(projected_monthly_spend, 2),
             "monthly_budget": round(monthly_budget, 2),
             "budget_percent": round(budget_percent, 2),
             "budget_alert": budget_alert,
             "chart": {"range": chart_range, "labels": labels, "values": values},
+            "category_labels": category_labels,
+            "category_totals": category_totals,
         }
     )
 
