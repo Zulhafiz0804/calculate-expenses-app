@@ -164,24 +164,38 @@
           </div>
         </div>
 
+        <div id="settings-modal" class="tab-hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/30 px-4 py-6" role="dialog" aria-modal="true" aria-labelledby="settings-modal-title">
+          <div class="w-full max-w-sm rounded-3xl bg-[#fffdfb] p-5 shadow-[0_25px_60px_rgba(15,23,42,0.2)] ring-1 ring-slate-200/80">
+            <div class="mb-5 flex items-center justify-between">
+              <div>
+                <p class="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">Settings</p>
+                <h2 id="settings-modal-title" class="mt-1 text-xl font-semibold tracking-tight text-slate-800">Dashboard Settings</h2>
+              </div>
+              <button id="close-settings-modal-btn" type="button" class="rounded-xl p-2 text-xl leading-none text-slate-400 transition hover:bg-slate-100 hover:text-slate-700" aria-label="Close settings">&times;</button>
+            </div>
+            <div class="space-y-4">
+              <div class="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-200/70">
+                <label for="monthly-budget" class="mb-2 block text-[10px] uppercase tracking-[0.18em] text-slate-500">Monthly Budget</label>
+                <div class="flex gap-2">
+                  <input id="monthly-budget" type="number" min="0" step="0.01" placeholder="0.00" class="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 focus:border-accent focus:outline-none focus:ring-3 focus:ring-accent/10" />
+                  <button id="save-budget-btn" type="button" class="rounded-2xl bg-accent px-3 py-2.5 text-sm font-medium text-white shadow-md shadow-accent/20">Save</button>
+                </div>
+              </div>
+              <button id="reset-data-btn" type="button" class="w-full rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 shadow-sm transition hover:bg-red-100">Reset All Data</button>
+            </div>
+          </div>
+        </div>
+
         <section id="dashboard-view" class="view-panel tab-hidden">
           <div class="mb-6 flex items-center justify-between">
             <div>
               <p class="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">Insights</p>
               <h2 class="mt-2 text-2xl font-semibold tracking-tight">Dashboard</h2>
             </div>
-            <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-lg shadow-inner">📊</div>
+            <button id="open-settings-btn" type="button" class="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-lg shadow-inner transition hover:bg-slate-200" aria-label="Open settings" title="Open settings">⚙️</button>
           </div>
 
           <div id="budget-alert" class="hidden mb-4 rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700 shadow-sm"></div>
-
-          <div class="mb-4 rounded-2xl bg-slate-50 p-3 shadow-sm ring-1 ring-slate-200/70">
-            <label for="monthly-budget" class="mb-2 block text-[10px] uppercase tracking-[0.18em] text-slate-500">Monthly Budget</label>
-            <div class="flex gap-2">
-              <input id="monthly-budget" type="number" min="0" step="0.01" placeholder="0.00" class="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 focus:border-accent focus:outline-none focus:ring-3 focus:ring-accent/10" />
-              <button id="save-budget-btn" type="button" class="rounded-2xl bg-accent px-3 py-2.5 text-sm font-medium text-white shadow-md shadow-accent/20">Save</button>
-            </div>
-          </div>
 
           <div class="mb-5 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
             <div class="flex items-center justify-between gap-3">
@@ -225,22 +239,24 @@
             </div>
           </div>
 
-          <div class="rounded-3xl bg-white p-3 shadow-soft ring-1 ring-slate-200/80">
-            <div class="mb-3 flex items-center justify-between gap-3">
-              <h3 id="chart-title" class="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">Last 7 days</h3>
-              <label class="sr-only" for="chart-range">Chart timeframe</label>
-              <select id="chart-range" class="rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-2 text-xs font-medium text-slate-600 focus:border-accent focus:outline-none focus:ring-3 focus:ring-accent/10">
-                <option value="7d">Last 7 Days</option>
-                <option value="30d">Last 30 Days</option>
-                <option value="year">This Year</option>
-              </select>
-            </div>
-            <div class="overflow-x-auto overflow-y-hidden">
-              <div id="chart-scroll-content" class="h-44">
-                <canvas id="spendingChart"></canvas>
+          <div class="flex flex-col gap-8">
+            <div class="rounded-3xl bg-white p-3 shadow-soft ring-1 ring-slate-200/80">
+              <div class="mb-3 flex items-center justify-between gap-3">
+                <h3 id="chart-title" class="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">Last 7 days</h3>
+                <label class="sr-only" for="chart-range">Chart timeframe</label>
+                <select id="chart-range" class="rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-2 text-xs font-medium text-slate-600 focus:border-accent focus:outline-none focus:ring-3 focus:ring-accent/10">
+                  <option value="7d">Last 7 Days</option>
+                  <option value="30d">Last 30 Days</option>
+                  <option value="year">This Year</option>
+                </select>
+              </div>
+              <div class="overflow-x-auto overflow-y-hidden">
+                <div id="chart-scroll-content" class="h-44">
+                  <canvas id="spendingChart"></canvas>
+                </div>
               </div>
             </div>
-            <div class="mt-5 border-t border-slate-100 pt-5">
+            <div class="rounded-3xl bg-white p-3 shadow-soft ring-1 ring-slate-200/80">
               <h3 class="mb-3 text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">Category Breakdown</h3>
               <div class="mx-auto h-56 max-w-xs">
                 <canvas id="categoryChart"></canvas>
@@ -249,7 +265,6 @@
           </div>
 
           <button id="export-csv-btn" type="button" class="mt-4 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700 shadow-sm transition hover:border-accent hover:text-accent">Export Data (CSV)</button>
-          <button id="reset-data-btn" type="button" class="mt-3 w-full rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 shadow-sm transition hover:bg-red-100">Reset All Data</button>
         </section>
       </div>
 
@@ -284,6 +299,9 @@
       const budgetProgressLabel = document.getElementById('budget-progress-label');
       const budgetProgressTrack = budgetProgressBar.parentElement;
       const budgetAlert = document.getElementById('budget-alert');
+      const settingsModal = document.getElementById('settings-modal');
+      const openSettingsButton = document.getElementById('open-settings-btn');
+      const closeSettingsModalButton = document.getElementById('close-settings-modal-btn');
       const saveBudgetButton = document.getElementById('save-budget-btn');
       const exportCsvButton = document.getElementById('export-csv-btn');
       const resetDataButton = document.getElementById('reset-data-btn');
@@ -740,6 +758,21 @@
         list.innerHTML = '';
         summary.textContent = formatCurrency(0);
         await loadDashboardData();
+      });
+
+      openSettingsButton.addEventListener('click', () => {
+        settingsModal.classList.remove('tab-hidden');
+        monthlyBudgetInput.focus();
+      });
+
+      closeSettingsModalButton.addEventListener('click', () => {
+        settingsModal.classList.add('tab-hidden');
+      });
+
+      settingsModal.addEventListener('click', (event) => {
+        if (event.target === settingsModal) {
+          settingsModal.classList.add('tab-hidden');
+        }
       });
 
       chartRangeSelect.addEventListener('change', loadDashboardData);
