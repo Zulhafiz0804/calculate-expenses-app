@@ -107,7 +107,13 @@ with app.app_context():
 
 @app.route("/")
 def index():
-    return render_template("index.html")
+    total_amount = float(db.session.query(db.func.coalesce(db.func.sum(Expense.amount), 0)).scalar() or 0)
+    recent_expenses = Expense.query.order_by(Expense.date.desc(), Expense.id.desc()).limit(10).all()
+    return render_template(
+        "index.html",
+        recent_expenses=[expense.to_dict() for expense in recent_expenses],
+        total_amount=round(total_amount, 2),
+    )
 
 
 @app.route("/api/expenses", methods=["GET"])
