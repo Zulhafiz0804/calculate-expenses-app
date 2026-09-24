@@ -1,9 +1,15 @@
 import csv
 import io
+import json
 import os
 import calendar
 from datetime import datetime, timedelta
-
+import os
+from google import genai
+from google.genai import types
+from dotenv import load_dotenv
+load_dotenv()
+from google import genai
 from flask import Flask, jsonify, request, render_template, send_file
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import text
@@ -16,6 +22,7 @@ app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 db = SQLAlchemy(app)
+
 
 
 expense_tags = db.Table(
@@ -105,6 +112,44 @@ with app.app_context():
         db.session.commit()
 
 
+def get_ai_context_data():
+    """Return compact month-over-month spending data for an AI context."""
+    today = datetime.utcnow().date()
+    current_month_start = today.replace(day=1)
+    previous_month_end = current_month_start - timedelta(days=1)
+    previous_month_start = previous_month_end.replace(day=1)
+
+    rows = (
+        db.session.query(Expense, Tag)
+        .outerjoin(expense_tags, Expense.id == expense_tags.c.expense_id)
+        .outerjoin(Tag, Tag.id == expense_tags.c.tag_id)
+        .filter(Expense.date >= previous_month_start, Expense.date <= today)
+        .all()
+    )
+
+    totals = {}
+    for expense, tag in rows:
+        month = "current" if expense.date >= current_month_start else "previous"
+        tag_name = tag.name if tag is not None else "Untagged"
+        tag_totals = totals.setdefault(tag_name, {"current": 0.0, "previous": 0.0})
+        tag_totals[month] += float(expense.amount)
+
+    for tag_totals in totals.values():
+        previous_total = tag_totals["previous"]
+        current_total = tag_totals["current"]
+        tag_totals["current"] = round(current_total, 2)
+        tag_totals["previous"] = round(previous_total, 2)
+        tag_totals["change_pct"] = (
+            None if previous_total == 0 else round(((current_total - previous_total) / previous_total) * 100, 2)
+        )
+
+    return {
+        "current_month": current_month_start.strftime("%Y-%m"),
+        "previous_month": previous_month_start.strftime("%Y-%m"),
+        "tags": totals,
+    }
+
+
 @app.route("/")
 def index():
     total_amount = float(db.session.query(db.func.coalesce(db.func.sum(Expense.amount), 0)).scalar() or 0)
@@ -133,6 +178,28 @@ def get_expenses():
         if tag is not None:
             expenses[expense.id]["tags"].append(tag.to_dict())
     return jsonify(list(expenses.values()))
+
+
+@app.route('/api/chat', methods=['POST'])
+def chat():
+    try:
+        user_message = request.json.get('user_message')
+        context_data = get_ai_context_data()
+        
+        client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
+        
+        response = client.models.generate_content(
+            model='gemini-3.6-flash',
+            contents=user_message,
+            config=types.GenerateContentConfig(
+                system_instruction=f"You are a strict financial anomaly detector. Here is the user's spending data context: {context_data} Keep your analysis extremely concise and mobile-friendly. Provide a maximum of 2 short, impactful bullet points. Do not use introductory or concluding fluff. Get straight to the numbers and the actionable advice."
+            )
+        )
+        
+        return jsonify({"response": response.text})
+    except Exception as e:
+        print(f"API Error: {e}")
+        return jsonify({"error": "Could not connect to the spending assistant."}), 500
 
 
 @app.route("/api/tags", methods=["GET", "POST"])
